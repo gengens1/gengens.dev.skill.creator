@@ -1,0 +1,66 @@
+---
+name: {{SKILL_NAME}}
+description: >
+  Project-local {{SKILL_NAME}} tooling: watermark-free git commit (preview then
+  Confirm, message {{COMMIT_FORMAT}}, Invoke-ProjectCommit), per-project site
+  start/stop/restart, status and log triage, first-run setup, build/test/lint verify,
+  DB query via .runtime connections, private docs under {{DOCS_ROOT}}, layered domain
+  knowledge self-update{{PROJECTS_DESC_PHRASE}}{{PUBLISH_DESC_PHRASE}}.
+  Triggers: {{SKILL_NAME}}, 本仓启停, 本仓重启, 本仓提交, 预览提交, 本仓查库, 本仓状态, 本仓日志{{VERIFY_TRIGGER}}{{PUBLISH_TRIGGER}}.
+---
+
+# {{SKILL_NAME}}
+
+**Announce:** Using {{SKILL_NAME}}.
+
+每会话开场必须 Announce 并阅读本 skill。
+
+{{PROJECT_NOTE}}
+
+脚本一律这样调用（不要直接裸跑 `.ps1`）：
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\<脚本>.ps1
+```
+
+## 路由
+
+| 意图 | 动作 |
+|---|---|
+| 启动 / 关闭 / 重启 | `scripts/Start-Site.ps1` / `Stop-Site.ps1` / `Restart-Site.ps1`{{PROJECT_FLAG}} ；细则 `references/site-dev.md` |
+| 起不来 / 崩了 / 看日志 | `scripts/Show-ProjectStatus.ps1{{PROJECT_FLAG}}`；细则见下 |
+| Git 提交 | 读 `references/commit-workflow.md`；预览 → **用户确认** → `Invoke-ProjectCommit.ps1 -Confirm` |
+| 查库 | 读 `references/db.md` + `.runtime/connections.json`；`Invoke-DbQuery.ps1` |
+| 私人文档 | 读 `references/docs.md`；根目录 `{{DOCS_ROOT}}/` |
+| 领域知识入库 | 先问用户 → 写入 `references/domain/` 对应层 → 更新 INDEX |
+{{ROUTE_EXTRA_ROWS}}
+{{FORBIDDEN_RULE}}
+
+{{SECTIONS}}
+
+## 状态与日志
+
+`Show-ProjectStatus.ps1` 汇总每个项目：在不在跑、PID、启动时间、URL、日志路径；**没跑起来（或刚崩）的项目会打印日志尾部**——排错先看它。`-IncludeLogs` 连正在跑的也打，`-Tail N` 调行数。
+
+## 代码地图
+
+读 `references/architecture.md`：项目/目录职责。动不熟悉的区域前先探索，**经用户确认后**回填该文件；不确定的留空，不要猜。
+
+## 分支
+
+- 主分支：`{{MAIN_BRANCH}}`
+- 日常分支：`{{DEV_BRANCH_NOTES}}`
+
+## 其它约束
+
+{{EXTRA_CONSTRAINTS}}
+
+## 细则（按需读）
+
+- 提交：`references/commit-workflow.md`
+- 启停：`references/site-dev.md`
+- 代码地图：`references/architecture.md`
+- DB：`references/db.md`
+- 文档：`references/docs.md`
+- 领域：`references/domain/INDEX.md`
+{{DOC_LINES}}

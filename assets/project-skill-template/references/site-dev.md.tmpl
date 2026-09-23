@@ -1,0 +1,27 @@
+# Site start/stop/restart ({{SKILL_NAME}})
+
+{{PROJECT_DOC_INTRO}}
+
+启动一律**后台**拉起（记 PID + 日志到 `.runtime/`），所以命令里**不要**自己写 `Start-Process`，直接写前台命令即可。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Start-Site.ps1{{PROJECT_FLAG_EXAMPLE}}
+```
+
+{{SITE_DOC_BODY}}
+
+## 停止
+
+停止**不要**按进程名 kill（`Get-Process node | Stop-Process` 会误杀机器上同名进程）。
+用 `-Project` 精确停，或在停止命令里按端口/PID 处理。脚本先跑项目的停止命令，再按启动时记录的 PID 杀整棵进程树。
+
+## 日志与排错
+
+先跑 `Show-ProjectStatus.ps1`：它列每个项目在不在跑、PID、启动时间、URL，**并打印没跑起来 / 刚崩的项目的日志尾部**。`-IncludeLogs` 连正在跑的也打，`-Tail N` 调行数。
+
+- 启动日志：`.runtime/logs/<项目>.out.log`、`.err.log`
+- PID 记录：`.runtime/pids.json`
+- 进程在 1.5 秒内退出时启动脚本会自动打印日志尾部，先看那里
+- `-Foreground` 让某个项目在当前控制台前台跑（调试用）
+
+命令跑不起来就改对应的 `.ps1`，不要绕过脚本手工执行。

@@ -1,0 +1,10 @@
+# Database ({{SKILL_NAME}})
+
+- 连接：`.runtime/connections.json`（勿提交）
+- 查询：`scripts/Invoke-DbQuery.ps1 -Name ENV -Query "..."`
+- `writePolicy`：`read-only` | `confirm-write` | `allow-write`（中文「只读」「需确认后可写」可映射）
+- 写操作须预览 SQL 后加 `-AllowWrite`；只读一律拒绝
+- **writePolicy 只是防误操作的拦截，不是安全边界**：脚本靠文本判断（会先剥掉前导注释与 `;` 多语句），
+  绕得过去。只读需求请用只读数据库账号。
+- 引擎执行逻辑默认 throw：先按连接串补全 `Invoke-DbQuery.ps1` 里的 `switch` 分支，再查
+- 表/字段：询问后写入 `references/domain/schema/`

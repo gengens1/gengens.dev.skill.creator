@@ -1,0 +1,16 @@
+param(
+  [switch]$Confirm,
+  [Parameter(Mandatory = $true)][string]$EnvName,
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $Confirm) { throw "PROJECT_PUBLISH_FAIL: need -Confirm after user approved preview" }
+$runtime = Get-ProjectRuntimeDir
+$f = Join-Path $runtime "publish-targets.json"
+if (-not (Test-Path -LiteralPath $f)) { throw "PROJECT_PUBLISH_FAIL: missing $f" }
+$cfg = Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json
+$t = @($cfg.targets | Where-Object { $_.name -eq $EnvName }) | Select-Object -First 1
+if (-not $t) { throw "PROJECT_PUBLISH_FAIL: env not found: $EnvName" }
+Write-Host ("PROJECT_PUBLISH_ENV strategy: " + $t.strategy)
+throw "PROJECT_PUBLISH_FAIL: Publish-Env not implemented. Edit Publish-Env.ps1 for env=$EnvName"

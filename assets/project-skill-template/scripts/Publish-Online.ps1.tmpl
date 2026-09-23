@@ -1,0 +1,34 @@
+# Online publish, per project. Preview the environment and commands with the user first;
+# -Confirm only guards against running it by accident.
+param(
+  [switch]$Confirm,
+  [string]$Project = "all",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $Confirm) { throw "PROJECT_PUBLISH_FAIL: need -Confirm after user approved preview" }
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Invoke-PublishOnline([string]$Name, [bool]$Explicit) {
+  switch ($Name) {
+{{PUBLISH_ONLINE_CASES}}
+    default { throw ("PROJECT_PUBLISH_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+$selected = @(Select-ProjectTargets $Project "Publish-Online")
+$explicit = -not ([string]::IsNullOrWhiteSpace($Project) -or $Project -eq "all")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_PUBLISH_ONLINE begin project=" + $p)
+  try {
+    Invoke-PublishOnline $p $explicit | Out-Null
+    Write-Host ("PROJECT_PUBLISH_ONLINE_OK project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_PUBLISH_ONLINE_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_PUBLISH_ALL_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

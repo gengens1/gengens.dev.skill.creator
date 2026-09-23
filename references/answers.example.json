@@ -1,0 +1,62 @@
+{
+  "commitMessageFormat": "type(scope):中文摘要",
+  "mainBranch": "main",
+  "devBranchNotes": "无",
+  "skillVisibility": "local",
+  "projects": [
+    {
+      "name": "web",
+      "dir": "web",
+      "url": "http://localhost:5173",
+      "init": "npm install\ncp .env.example .env",
+      "start": "npm run dev",
+      "stop": "无",
+      "build": "npm run build",
+      "test": "npm run test -- %FILTER%",
+      "lint": "npm run lint",
+      "publishLocal": "npm run build && npm run preview",
+      "publishOnline": "无"
+    },
+    {
+      "name": "api",
+      "dir": "api",
+      "start": "dotnet run --project src/Api",
+      "stop": "无",
+      "build": "dotnet build -c Release",
+      "test": "dotnet test",
+      "lint": "无",
+      "publishLocal": "无",
+      "publishOnline": "dotnet publish -c Release -o ./publish",
+      "init": "dotnet restore"
+    }
+  ],
+  "publishOther": "无",
+  "publishOtherTargets": [],
+  "dbConnections": [
+    {
+      "name": "local",
+      "engine": "sqlserver",
+      "connectionString": "Server=localhost;Database=AppDb;Trusted_Connection=True;",
+      "writePolicy": "read-only"
+    }
+  ],
+  "extraConstraints": "无",
+  "_notes": "answers.json 写系统临时目录。projects 是每个可独立运行/构建的项目；只有一个项目也照常列一项（dir 留空=仓库根）。start 直接写前台命令，脚本会后台拉起并记 PID；stop 答“无”即交给 PID 清理，千万别按进程名 kill。重启固定先停再启，无需字段。 每个项目可选 init（新克隆后的准备命令，多行：装依赖/复制 .env/初始化库）与 url（状态展示用）；测试命令里用 %FILTER% 标出单测插入点，-Filter 替换它、不传则替换为空跑全量。仓库级 architecture 填现有架构要点，没填则留首次探索回填规则。",
+  "_noneValues": "以下字段填 无/没有/暂无/不需要/跳过/none/no/n/a/skip（结尾带句号也算）即视为没有该能力：每个项目的 start/stop/build/test/lint/publishLocal/publishOnline，以及仓库级 publishOther。",
+  "_answersReadAsNone": "scaffold 会把被判“无”的键打进 stdout 的 ANSWER_READ_AS_NONE=，预览时要复述给用户核对。",
+  "_legacyFlatAnswers": "老式扁平字段（siteStart/siteStop/verifyBuild/verifyTest/verifyLint/publishLocal/publishOnline）仍可用，会自动折成一个名为 main 的项目。",
+  "_skillVisibilityAllowed": [
+    "local",
+    "shared"
+  ],
+  "_writePolicyAllowed": [
+    "read-only",
+    "confirm-write",
+    "allow-write",
+    "只读",
+    "需确认后可写",
+    "可写"
+  ],
+  "_projectNameRules": "ASCII [a-z0-9][a-z0-9_-]*，唯一，不能用 all；dir 为仓库内相对路径，不得含 .. 或绝对路径",
+  "architecture": "web 是前端（Vue3 + Vite），api 是后端（ASP.NET Core），共享 packages/shared 里的类型定义"
+}

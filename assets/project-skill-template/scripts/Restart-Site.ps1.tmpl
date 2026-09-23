@@ -1,0 +1,25 @@
+# Restart = stop then start, per project. Need something bespoke? Edit this file.
+param(
+  [string]$Project = "all",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+$here = $PSScriptRoot
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+$selected = @(Select-ProjectTargets $Project "Restart-Site")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_SITE_RESTART begin project=" + $p)
+  try {
+    & (Join-Path $here "Stop-Site.ps1") -Project $p -RepoRoot $RepoRoot
+    & (Join-Path $here "Start-Site.ps1") -Project $p -RepoRoot $RepoRoot
+    Write-Host ("PROJECT_SITE_RESTART_OK project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_SITE_RESTART_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_RESTART_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

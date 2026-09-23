@@ -1,0 +1,37 @@
+# Starts one project or all of them.
+#
+# Each project's start block runs in a separate PowerShell process (so the caller returns
+# immediately even for a dev server), with output redirected to .runtime/logs, and the PID
+# recorded in .runtime/pids.json so Stop-Site.ps1 can kill exactly that tree.
+# Write the plain foreground command here - do NOT wrap it in Start-Process yourself.
+param(
+  [string]$Project = "all",
+  [switch]$Foreground,
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Get-StartSpec([string]$Name) {
+  switch ($Name) {
+{{START_SPEC_CASES}}
+    default { throw ("PROJECT_START_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+$selected = @(Select-ProjectTargets $Project "Start-Site")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_SITE_START begin project=" + $p)
+  try {
+    $spec = Get-StartSpec $p
+    Start-ProjectBackground -Name $p -WorkingDir $spec.Dir -Body $spec.Body -Foreground:$Foreground
+    Write-Host ("PROJECT_SITE_START_OK project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_SITE_START_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_SITE_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

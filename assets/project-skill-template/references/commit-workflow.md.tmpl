@@ -1,0 +1,30 @@
+# Commit workflow ({{SKILL_NAME}})
+
+## Mandatory flow
+
+1. `git status --porcelain`、`git diff`、`git log -5 --oneline`
+2. Agent 分析取舍，选出本次要提交的路径{{COMMIT_SCOPE_HINT}}
+3. 消息格式：{{COMMIT_FORMAT}}（禁止 Cursor 水印文案）
+4. **把消息 + 路径清单预览给用户，然后 STOP**
+5. 用户确认后：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Invoke-ProjectCommit.ps1 -Confirm -Message "type(scope):中文摘要" -Path path1 -Path path2
+```
+
+{{COMMIT_VERIFY_NOTE}}
+## 脚本行为
+
+- `git commit --only -F <消息文件> -- <路径>`：**只有** `-Path` 给的路径进这次提交。别人已暂存的文件保持暂存状态，不会被卷进来。
+- 提交身份取仓库 `git config user.name / user.email`——不继承上一条提交的作者。
+- `pre-commit` / `commit-msg` hook 与 `commit.gpgsign` 照常生效。
+- 新增文件（untracked）也可以直接传 `-Path`，脚本会先登记。
+- 消息里若带上 Cursor 水印，提交前就会被拦下。
+- `-Confirm` 只是防误跑，**不构成用户授权**：真正的把关是第 4 步的预览。
+
+## Exclude
+
+- `{{DOCS_ROOT}}/`
+- secrets、bin/obj、node_modules
+- 禁止 `git add -A`
+{{COMMIT_EXCLUDE_EXTRA}}

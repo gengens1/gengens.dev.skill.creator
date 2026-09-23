@@ -1,0 +1,20 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/
+
+# Local scratch (do not commit real secrets)
+*.local.json
+/answers*.json
+.env
+.env.*
+!.env.example
+
+# Scaffold leftovers if someone tests against this repo root
+/.runtime/
+/private_docs/
+/.agents/

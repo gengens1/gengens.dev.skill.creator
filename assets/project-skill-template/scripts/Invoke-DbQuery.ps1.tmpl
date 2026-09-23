@@ -1,0 +1,84 @@
+# Query runner for the connections registered in .runtime/connections.json.
+#
+# writePolicy is a tripwire, not a security boundary: it inspects the SQL text and can
+# be defeated by anything it does not anticipate. Give read-only work a read-only DB
+# account; treat this only as protection against accidents.
+param(
+  [Parameter(Mandatory = $true)][string]$Name,
+  [Parameter(Mandatory = $true)][string]$Query,
+  [switch]$AllowWrite,
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+$runtime = Get-ProjectRuntimeDir
+$connFile = Join-Path $runtime "connections.json"
+if (-not (Test-Path -LiteralPath $connFile)) {
+  throw "PROJECT_DB_FAIL: missing $connFile"
+}
+$cfg = Get-Content -LiteralPath $connFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$item = @($cfg.connections | Where-Object { $_.name -eq $Name }) | Select-Object -First 1
+if (-not $item) { throw "PROJECT_DB_FAIL: connection not found: $Name" }
+
+function Resolve-WritePolicy([string]$raw) {
+  $t = ($raw + "").Trim()
+  $p = $t.ToLowerInvariant()
+  if ($p -in @("read-only", "readonly", "ro")) { return "read-only" }
+  if ($t -eq [string]([char]0x53EA) + [string]([char]0x8BFB)) { return "read-only" }
+  if ($p -in @("confirm-write", "confirm", "need-confirm")) { return "confirm-write" }
+  if ($t.Contains([string]([char]0x786E) + [string]([char]0x8BA4))) { return "confirm-write" }
+  if ($p -in @("allow-write", "writable", "write", "no-restriction")) { return "allow-write" }
+  # Chinese: 可写
+  if ($t -eq ([string]([char]0x53EF) + [string]([char]0x5199))) { return "allow-write" }
+  return "read-only"
+}
+
+# Strip leading comments/whitespace so `/* x */ delete ...` and `-- x\nupdate ...` cannot
+# hide a write statement, and treat `;`-separated tails as part of the same statement.
+function Get-SqlHead([string]$sql) {
+  $s = $sql
+  while ($true) {
+    $before = $s
+    $s = $s.TrimStart()
+    $s = $s -replace '^(?s)/\*.*?\*/\s*', ''
+    $s = $s -replace '(?m)^--[^\r\n]*(\r?\n|$)', ''
+    if ($s -eq $before) { break }
+  }
+  return $s.TrimStart()
+}
+
+$q = $Query.Trim()
+$head = Get-SqlHead $q
+$isWrite = ($head -match '(?i)^(insert|update|delete|merge|alter|drop|create|truncate|exec|execute|grant|revoke|comment\s+on|call|replace)\b')
+if (-not $isWrite -and $head -match ';') {
+  # multi-statement batch: refuse anything that also carries a write keyword
+  $isWrite = ($head -match '(?i)\b(insert|update|delete|merge|alter|drop|create|truncate|exec|execute|grant|revoke)\b')
+}
+$policy = Resolve-WritePolicy ([string]$item.writePolicy)
+if ($isWrite) {
+  if ($policy -eq "read-only") {
+    throw "PROJECT_DB_FAIL: write blocked by writePolicy=$($item.writePolicy) (resolved=$policy)"
+  }
+  if (-not $AllowWrite) {
+    throw "PROJECT_DB_FAIL: write requires -AllowWrite after user confirmed SQL preview"
+  }
+}
+
+$cs = [string]$item.connectionString
+$engine = ([string]$item.engine).ToLowerInvariant()
+Write-Host "PROJECT_DB_QUERY name=$Name engine=$engine policy=$policy"
+
+switch -Regex ($engine) {
+  'sqlserver|mssql|^sql$' {
+    throw "PROJECT_DB_FAIL: sqlserver runner not configured. Edit Invoke-DbQuery.ps1 to parse connectionString (len=$(($cs).Length))."
+  }
+  'postgres|postgresql|pgsql' {
+    throw "PROJECT_DB_FAIL: postgres runner not configured. Edit Invoke-DbQuery.ps1 to map connectionString."
+  }
+  'mysql' {
+    throw "PROJECT_DB_FAIL: mysql runner not configured. Edit Invoke-DbQuery.ps1 to map connectionString."
+  }
+  default {
+    throw "PROJECT_DB_FAIL: unsupported engine=$engine"
+  }
+}

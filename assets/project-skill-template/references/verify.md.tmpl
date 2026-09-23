@@ -1,0 +1,14 @@
+# Verify ({{SKILL_NAME}})
+
+{{PROJECT_DOC_INTRO}}
+
+构建 / 测试 / 检查都通过脚本走，命令来自创建访谈并已注入。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Invoke-Verify.ps1 -Target build{{PROJECT_FLAG_EXAMPLE}}
+```
+
+每个项目的命令在它自己的目录下执行。未配置的目标：`-Project all` 时跳过并打印 `PROJECT_VERIFY_SKIP`，指名项目时直接报错。
+
+{{VERIFY_FILTER_NOTE}}
+{{VERIFY_DOC_BODY}}

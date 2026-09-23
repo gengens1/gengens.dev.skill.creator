@@ -1,0 +1,66 @@
+# Build / test / lint entry point, generated from the creation interview.
+#
+#   ...\Invoke-Verify.ps1 -Target test
+#   ...\Invoke-Verify.ps1 -Target build -Project web
+#   ...\Invoke-Verify.ps1 -Target test -Filter "--filter OrderTests"
+#
+# Each project's command runs in that project's directory (the `dir` given at creation).
+# A project with nothing configured for the target is skipped under -Project all, and
+# throws when you name it explicitly.
+param(
+  [Parameter(Mandatory = $true)][ValidateSet("build", "test", "lint")][string]$Target,
+  [string]$Project = "all",
+  [string]$Filter = "",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Invoke-VerifyBuild([string]$Name, [bool]$Explicit) {
+  switch ($Name) {
+{{VERIFY_BUILD_CASES}}
+    default { throw ("PROJECT_VERIFY_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+function Invoke-VerifyTest([string]$Name, [bool]$Explicit, [string]$Filter) {
+  switch ($Name) {
+{{VERIFY_TEST_CASES}}
+    default { throw ("PROJECT_VERIFY_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+function Invoke-VerifyLint([string]$Name, [bool]$Explicit) {
+  switch ($Name) {
+{{VERIFY_LINT_CASES}}
+    default { throw ("PROJECT_VERIFY_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+# Skipping a project under -Project all is fine; running a target that NO project has is
+# not - that would look like a successful run.
+$configuredAnywhere = @{ build = {{BUILD_CONFIGURED}}; test = {{TEST_CONFIGURED}}; lint = {{LINT_CONFIGURED}} }[$Target]
+if (-not $configuredAnywhere) {
+  throw ("PROJECT_VERIFY_FAIL: " + $Target + " is not configured for any project")
+}
+
+$selected = @(Select-ProjectTargets $Project "Invoke-Verify")
+$explicit = -not ([string]::IsNullOrWhiteSpace($Project) -or $Project -eq "all")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_VERIFY begin target=$Target project=" + $p)
+  try {
+    switch ($Target) {
+      "build" { Invoke-VerifyBuild $p $explicit }
+      "test" { Invoke-VerifyTest $p $explicit $Filter }
+      "lint" { Invoke-VerifyLint $p $explicit }
+    }
+    Write-Host ("PROJECT_VERIFY_OK target=$Target project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_VERIFY_FAIL target=$Target project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_VERIFY_ALL_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

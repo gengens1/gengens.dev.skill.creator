@@ -1,0 +1,111 @@
+# Commit exactly the agent-selected paths, after the user approved the preview.
+#
+# `git commit --only -F <msgfile> -- <paths>` is deliberate:
+#   - only the given paths land in the commit; work staged for other files stays staged
+#   - author/committer come from git config, never inherited from the previous commit
+#   - pre-commit / commit-msg hooks and commit.gpgsign are respected
+param(
+  [switch]$Confirm,
+  [Parameter(Mandatory = $true)][string]$Message,
+  [Parameter(Mandatory = $true)][string[]]$Path,
+  [string]$RepoRoot = ""
+)
+
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+
+# Capturing a native command's stderr while $ErrorActionPreference is 'Stop' turns every
+# stderr line into a terminating error (PowerShell 5.1 NativeCommandError). git writes
+# CRLF warnings and hook output to stderr, which would abort the commit half-way and
+# leave a stale .git/index.lock. Relax the preference while capturing and trust the
+# exit code instead.
+function Invoke-GitCaptured([string[]]$GitArgs) {
+  $eap = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $code = 1
+  $captured = @()
+  try {
+    $captured = @(& git @GitArgs 2>&1)
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $eap
+  }
+  return [pscustomobject]@{ Output = $captured; Code = $code }
+}
+
+if (-not $Confirm) {
+  throw "PROJECT_COMMIT_FAIL: need -Confirm after user approved the preview."
+}
+if ([string]::IsNullOrWhiteSpace($Message)) {
+  throw "PROJECT_COMMIT_FAIL: -Message required"
+}
+$paths = @($Path | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim().Replace("\", "/") } | Select-Object -Unique)
+if ($paths.Count -eq 0) {
+  throw "PROJECT_COMMIT_FAIL: -Path required"
+}
+
+$docs = $script:DocsRootName
+foreach ($p in $paths) {
+{{SKILL_GUARD_PS}}  if ($docs -and ($p -match ("(?i)(^|/)" + [regex]::Escape($docs) + "(/|$)"))) {
+    throw "PROJECT_COMMIT_FAIL: refusing docs path: $p"
+  }
+}
+
+$msgBody = $Message.TrimEnd() + "`n"
+if ($msgBody -match '(?i)co-authored-by:\s*cursor' -or $msgBody -match '(?i)cursoragent@' -or $msgBody -match '(?i)made-with:\s*cursor') {
+  throw "PROJECT_COMMIT_FAIL: watermark detected in message before commit"
+}
+
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+$runtime = Get-ProjectRuntimeDir
+$msgFile = Join-Path $runtime "commit-msg.txt"
+$utf8 = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($msgFile, $msgBody, $utf8)
+
+Push-Location $RepoRoot
+try {
+  $authorName = ((& git config user.name) -join "").Trim()
+  $authorMail = ((& git config user.email) -join "").Trim()
+  if (-not $authorName -or -not $authorMail) {
+    throw "PROJECT_COMMIT_FAIL: git user.name / user.email not configured in $RepoRoot"
+  }
+
+  $dirty = @(& git status --porcelain -- $paths)
+  if ($LASTEXITCODE -ne 0) { throw "PROJECT_COMMIT_FAIL: git status failed for the given -Path" }
+  if ($dirty.Count -eq 0) { throw "PROJECT_COMMIT_FAIL: no changes for the given -Path" }
+  Write-Host "PREVIEW (everything that will be committed):"
+  $dirty | ForEach-Object { Write-Host ("  " + $_) }
+
+  # `git commit --only` only accepts paths git already knows, so register brand-new files.
+  $untracked = @(& git ls-files --others --exclude-standard -- $paths)
+  if ($untracked.Count -gt 0) {
+    $added = Invoke-GitCaptured (@("add", "-N", "--") + $untracked)
+    if ($added.Code -ne 0) {
+      $added.Output | ForEach-Object { Write-Host $_ }
+      throw "PROJECT_COMMIT_FAIL: git add -N failed for new paths"
+    }
+  }
+
+  $committed = Invoke-GitCaptured (@("commit", "--only", "-F", $msgFile, "--") + $paths)
+  $committed.Output | ForEach-Object { Write-Host $_ }
+  if ($committed.Code -ne 0) {
+    throw "PROJECT_COMMIT_FAIL: git commit --only failed (exit $($committed.Code))"
+  }
+
+  $newSha = (& git rev-parse HEAD).Trim()
+  if ($newSha -notmatch '^[0-9a-f]{40}$') { throw "PROJECT_COMMIT_FAIL: cannot resolve HEAD after commit" }
+
+  $objMsg = & git cat-file -p $newSha
+  if ($objMsg -match '(?i)co-authored-by:\s*cursor' -or $objMsg -match '(?i)cursoragent@' -or $objMsg -match '(?i)made-with:\s*cursor') {
+    throw ("PROJECT_COMMIT_FAIL: watermark present in the committed message. Undo with: git reset --soft HEAD~1  (sha=" + $newSha + ")")
+  }
+
+  Write-Host ("COMMIT_AUTHOR=" + $authorName + " <" + $authorMail + ">")
+  Write-Host ("COMMIT_PATHS=" + ($paths -join " "))
+  Write-Host "PROJECT_COMMIT_OK $newSha"
+  Write-Host "==== MESSAGE ===="
+  Write-Host (& git log -1 --format=%B)
+  Write-Host "PROJECT_DEV_OK"
+} finally {
+  Pop-Location
+}

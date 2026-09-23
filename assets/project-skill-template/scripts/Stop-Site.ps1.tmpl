@@ -1,0 +1,39 @@
+# Stops one project or all of them: runs the project's stop command (if any), then kills
+# the process tree recorded by Start-Site.ps1.
+#
+# Do NOT stop by process name (Get-Process node | Stop-Process) - that kills unrelated
+# processes on the machine. Stop by project here, or by port/PID inside the stop command.
+param(
+  [string]$Project = "all",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Get-StopSpec([string]$Name) {
+  switch ($Name) {
+{{STOP_SPEC_CASES}}
+    default { throw ("PROJECT_STOP_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+$selected = @(Select-ProjectTargets $Project "Stop-Site")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_SITE_STOP begin project=" + $p)
+  try {
+    $spec = Get-StopSpec $p
+    if ($spec.Body) {
+      Push-Location $spec.Dir
+      try { & $spec.Body } finally { Pop-Location }
+    }
+    Stop-ProjectProcess $p
+    Write-Host ("PROJECT_SITE_STOP_OK project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_SITE_STOP_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_STOP_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

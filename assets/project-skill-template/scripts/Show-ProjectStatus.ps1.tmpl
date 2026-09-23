@@ -1,0 +1,66 @@
+# One place to see whether each project is up, and what it said last time it fell over.
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Show-ProjectStatus.ps1
+#   ... -Project web -IncludeLogs -Tail 40
+#
+# Projects that are not running (or whose recorded process is gone) get their log tail
+# printed automatically - that is usually the answer to "why is it not up".
+param(
+  [string]$Project = "all",
+  [int]$Tail = 15,
+  [switch]$IncludeLogs,
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Get-ProjectInfo([string]$Name) {
+  switch ($Name) {
+{{STATUS_INFO_CASES}}
+    default { throw ("PROJECT_STATUS_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+function Write-LogTail([string]$Name, [string]$Path, [string]$Stream, [int]$Lines) {
+  if (-not (Test-Path -LiteralPath $Path)) { return }
+  $content = @(Get-Content -LiteralPath $Path -Tail $Lines -ErrorAction SilentlyContinue |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($content.Count -eq 0) { return }
+  Write-Host ("PROJECT_LOGTAIL project=" + $Name + " stream=" + $Stream + " file=" + $Path)
+  $content | ForEach-Object { Write-Host ("  " + $_) }
+}
+
+$selected = @(Select-ProjectTargets $Project "Show-ProjectStatus")
+foreach ($p in $selected) {
+  $info = Get-ProjectInfo $p
+  $url = [string]$info.Url
+  $rec = Get-ProjectPidRecord $p
+  if (-not $rec) {
+    Write-Host ("PROJECT_STATUS project=" + $p + " state=stopped reason=no-start-record dir=" + $info.Dir + " url=" + $url)
+    continue
+  }
+  $procId = [int]$rec.pid
+  $body = Get-Process -Id $procId -ErrorAction SilentlyContinue
+  $uptime = ""
+  try {
+    $started = [datetime]::Parse([string]$rec.startedAt)
+    $uptime = (New-TimeSpan -Start $started -End (Get-Date)).ToString("hh\:mm\:ss")
+  } catch { $uptime = "?" }
+
+  if ($body) {
+    Write-Host ("PROJECT_STATUS project=" + $p + " state=running pid=" + $procId + " uptime=" + $uptime +
+      " dir=" + $info.Dir + " url=" + $url + " log=" + $rec.log)
+    if ($IncludeLogs) {
+      Write-LogTail $p ([string]$rec.errLog) "err" $Tail
+      Write-LogTail $p ([string]$rec.log) "out" $Tail
+    }
+  } else {
+    # record survived but the process did not: a crash. The tail is the whole point.
+    Write-Host ("PROJECT_STATUS project=" + $p + " state=dead pid=" + $procId + " started=" + $rec.startedAt +
+      " dir=" + $info.Dir + " url=" + $url)
+    Write-LogTail $p ([string]$rec.errLog) "err" $Tail
+    Write-LogTail $p ([string]$rec.log) "out" $Tail
+  }
+}
+Write-Host "PROJECT_DEV_OK"

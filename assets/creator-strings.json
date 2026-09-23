@@ -1,0 +1,146 @@
+{
+  "_note": "String table for scripts/scaffold-project-skill.ps1. The .ps1 source is deliberately kept ASCII-only: Windows PowerShell 5.1 decodes BOM-less script files with the ANSI code page, so literal CJK inside the script would corrupt on machines with a non-UTF-8 locale. Keep new user-facing phrases here; do not inline CJK into the .ps1.",
+  "_noneWordsNote": "Compared after trimming whitespace, surrounding quotes and trailing punctuation. Add variants here rather than in code.",
+  "noneWords": [
+    "无",
+    "没有",
+    "暂无",
+    "不需要",
+    "不要",
+    "不用",
+    "不做",
+    "无需",
+    "无发布",
+    "不发布",
+    "无需发布",
+    "跳过",
+    "忽略",
+    "否"
+  ],
+  "noneRegex": "^(?i)\\s*(none|no|n/?a|null|nil|skip|skipped|nope|nothing|not\\s+needed|empty|-|--|—)\\s*$",
+  "_tailPunctuationNote": "Unicode code points in decimal (JSON has no hex literals). Stripped from the END of an answer before the none-test only; the raw answer is what gets injected.",
+  "tailPunctuation": [
+    12290,
+    65294,
+    46,
+    65281,
+    33,
+    65311,
+    63,
+    65292,
+    44,
+    12289,
+    65307,
+    59,
+    65306,
+    58,
+    12288,
+    32,
+    8212,
+    8211,
+    45,
+    9
+  ],
+  "docLines": {
+    "publish": "- 发布：`references/publish.md`",
+    "verify": "- 验证：`references/verify.md`",
+    "setup": "- 首次准备：`references/setup.md`"
+  },
+  "defaultCommitFormat": "type(scope):中文摘要",
+  "defaultDevBranchNotes": "无强制命名",
+  "noneWord": "无",
+  "defaultProjectName": "main",
+  "projects": {
+    "descPhrase": " across sub-projects",
+    "routeFlag": "，`-Project <名>`（默认 `all`）",
+    "docIntro": "本仓有多个项目：任一动作都用 `-Project <名|all>` 指定，默认 `all`。",
+    "docIntroSingle": "本仓只有一个项目 `%NAME%`；`-Project` 可以省略。",
+    "docStart": "### %NAME% 启动\n\n```\n%CMD%\n```\n\n",
+    "docStartNone": "### %NAME% 启动\n\n未配置：脚本会抛错。补齐 `scripts/Start-Site.ps1` 里 `%NAME%` 的启动脚本块后再用。\n\n",
+    "docStop": "### %NAME% 停止\n\n```\n%CMD%\n```\n\n",
+    "docStopNone": "### %NAME% 停止\n\n未配置停止命令：脚本按启动时记录的 PID 杀进程树。\n\n",
+    "docVerify": "### %NAME% · %LABEL%\n\n```\n%CMD%\n```\n\n",
+    "docPublish": "### %NAME% · %ENV%\n\n```\n%CMD%\n```\n\n",
+    "commitScopeHint": "（多项目：scope 用项目名，如 `feat(web): …`；只选本次涉及的项目路径）",
+    "startMissing": "PROJECT_START_FAIL: project '%NAME%' has no start command; edit this script",
+    "verifyMissing": "PROJECT_VERIFY_FAIL: %TARGET% not configured for project '%NAME%'",
+    "publishMissing": "PROJECT_PUBLISH_FAIL: %ENV% not configured for project '%NAME%'"
+  },
+  "site": {
+    "stopNoneComment": "        # no stop command configured; the recorded process tree is stopped below",
+    "docIntro": "只通过 scripts 操作。启动一律**后台**拉起（记 PID + 日志到 `.runtime/`），所以命令里不需要自己写 `Start-Process`，直接写前台命令即可。",
+    "docStopWarn": "停止**不要**按进程名 kill（会误杀同名进程）：用 `-Project` 精确停，或在停止命令里按端口/PID 处理。",
+    "logNote": "启动日志：`.runtime/logs/<项目>.out.log` 与 `.err.log`；PID 记录：`.runtime/pids.json`。"
+  },
+  "publish": {
+    "descPhrase": ", publish scripts when configured",
+    "agentsPhrase": "、发布",
+    "triggerPhrase": ", 本仓发布",
+    "routeRows": {
+      "local": "| 发布本地 | 预览确认后 `scripts/Publish-Local.ps1 -Confirm%PROJECTFLAG%` |",
+      "online": "| 发布线上 | 预览确认后 `scripts/Publish-Online.ps1 -Confirm%PROJECTFLAG%` |",
+      "other": "| 发布其它 | 预览确认后 `scripts/Publish-Env.ps1 -Confirm -EnvName <名>` |"
+    },
+    "section": "## 发布\n\n执行前预览环境与命令，确认后再跑脚本。细则：`references/publish.md`。",
+    "docIntro": "执行前预览环境与命令，用户确认后再跑脚本。`-Confirm` 只是防误跑，不是用户授权。",
+    "otherSection": "\n## 其它环境\n\n仓库级（不按项目分）：目标清单在 `.runtime/publish-targets.json`。\n\n策略：%CMD%\n\n```powershell\npowershell -NoProfile -ExecutionPolicy Bypass -File .\\.agents\\skills\\<skill>\\scripts\\Publish-Env.ps1 -Confirm -EnvName <名>\n```\n\n该脚本骨架默认 throw，补全真实步骤后再用。\n",
+    "envLabels": {
+      "local": "本地",
+      "online": "线上"
+    },
+    "otherTargetFallback": "other"
+  },
+  "verify": {
+    "descPhrase": ", build/test/lint via Invoke-Verify",
+    "triggerPhrase": ", 本仓构建, 本仓测试, 本仓检查",
+    "agentsPhrase": "、构建测试",
+    "routeRow": "| 构建 / 测试 / 检查 | `scripts/Invoke-Verify.ps1 -Target build%PROJECTFLAG%`（或 test / lint）；细则 `references/verify.md` |",
+    "section": "## 验证\n\n构建 / 测试 / 静态检查统一走 `scripts/Invoke-Verify.ps1`，细则：`references/verify.md`。",
+    "targets": [
+      "build",
+      "test",
+      "lint"
+    ],
+    "targetLabels": {
+      "build": "构建",
+      "test": "测试",
+      "lint": "静态检查"
+    },
+    "filterHint": "单测：命令里用 `%FILTER%` 标出插入点（把参数一起写进去），例如 `dotnet test %FILTER%`；然后 `-Filter \"--filter OrderTests\"`。不传 `-Filter` 时占位符替换为空，即跑全量。"
+  },
+  "skillVisibility": {
+    "forbiddenLocal": "**禁止**提交 `.agents/skills/**` 与 `{{DOCS_ROOT}}/`；**禁止**擅自 push。\n\n> 本 skill 为本地专用：`.agents/skills/**` 已 gitignore，不随仓库分发。",
+    "forbiddenShared": "**禁止**提交 `{{DOCS_ROOT}}/`；**禁止**擅自 push。\n\n> 本 skill 随仓库提交：改动 `.agents/skills/{{SKILL_NAME}}/` 后一并提交。",
+    "guardPs": "  if ($p -match '(?i)(^|/)\\.agents/skills(/|$)') {\r\n    throw \"PROJECT_COMMIT_FAIL: refusing skill path: $p\"\r\n  }\r\n  if ($p -match '(?i)(^|/)SKILL\\.md$') {\r\n    throw \"PROJECT_COMMIT_FAIL: refusing SKILL.md path: $p\"\r\n  }\r\n",
+    "agentsLocal": "本仓 skill 为本地专用（`.agents/skills/` 已 gitignore，不随仓库分发）",
+    "agentsShared": "本仓 skill 随仓库提交，改动 `.agents/skills/{{SKILL_NAME}}/` 后按需一并提交",
+    "commitExcludeLocal": "- `.agents/skills/**`\n",
+    "commitExcludeShared": "- 本 skill 随仓库提交，`.agents/skills/**` 不在排除之列\n"
+  },
+  "commit": {
+    "verifyNote": "**提交前**：先跑 `scripts/Invoke-Verify.ps1 -Target test%PROJECTFLAG%`（没配置测试就跑 build）；挂了就不要提交。\n\n"
+  },
+  "setup": {
+    "descPhrase": ", first-run setup via Init-Project",
+    "triggerPhrase": ", 本仓初始化, 装依赖",
+    "agentsPhrase": "、首次准备",
+    "routeRow": "| 首次准备 / 装依赖 | `scripts/Init-Project.ps1%PROJECTFLAG%`；细则 `references/setup.md` |",
+    "docIntro": "新克隆仓库后先跑一次。命令在各自项目目录下执行（可多行：装依赖 + 复制 .env + 初始化库），逐项目打印成功/失败。",
+    "docSection": "### %NAME%\n\n```\n%CMD%\n```\n\n",
+    "docSectionNone": "### %NAME%\n\n无准备步骤。\n\n",
+    "agentsNote": "新环境第一件事：跑 `scripts/Init-Project.ps1` 装依赖/复制 .env"
+  },
+  "status": {
+    "routeRow": "| 看服务状态 / 日志 | `scripts/Show-ProjectStatus.ps1%PROJECTFLAG%`；没跑起来的项目默认打印日志尾部 |",
+    "section": "## 状态与日志\n\n`scripts/Show-ProjectStatus.ps1` 汇总每个项目：在不在跑、PID、启动时间、URL、日志路径；没跑起来（或刚崩）的项目会打印日志尾部。`-IncludeLogs` 连正在跑的也打。"
+  },
+  "architecture": {
+    "fillRule": "首次在本仓动不熟悉的区域时：先探索代码结构，把「哪个目录/模块负责什么」在**用户确认后**回填 `references/architecture.md`；不确定的地方留空，不要编。",
+    "header": "## 现有说明"
+  },
+  "docs": {
+    "taskNoteMulti": "多项目：任务按项目分目录 `task/<项目>/NNN-简述`（本项目：%PROJECTS%）",
+    "taskNoteSingle": "每任务一夹 `NNN-简述`",
+    "taskSeparator": "、"
+  }
+}

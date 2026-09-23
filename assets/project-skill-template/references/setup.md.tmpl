@@ -1,0 +1,18 @@
+# 首次准备 ({{SKILL_NAME}})
+
+{{PROJECT_DOC_INTRO}}
+
+新克隆仓库后先跑一次；改了依赖、切了带依赖变动的分支、或某个项目因为缺包起不来时也该跑。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Init-Project.ps1{{PROJECT_FLAG_EXAMPLE}}
+```
+
+命令在各自项目目录下执行，逐项目打印 `PROJECT_INIT_OK` / `PROJECT_INIT_SKIP` / `PROJECT_INIT_FAIL`。
+
+{{SETUP_DOC_BODY}}
+## 环境与密钥
+
+- `.env` / `appsettings.*.json` 里的密钥**不要提交**；准备步骤里可以放「从 `.env.example` 复制」这类命令。
+- 缺某个变量导致的启动失败，先比对 `.env.example` 与本地 `.env`。
+- 数据库初始化/建表如果是一次性的，也放进对应项目的准备命令里。

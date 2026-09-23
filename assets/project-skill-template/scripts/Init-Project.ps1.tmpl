@@ -1,0 +1,41 @@
+# First-run setup: install dependencies, copy .env, seed the database.
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\{{SKILL_NAME}}\scripts\Init-Project.ps1
+#
+# Run it after a fresh clone, after switching branches with dependency changes, or when a
+# project refuses to start for want of a package. Commands run in the project's own dir.
+param(
+  [string]$Project = "all",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Get-InitSpec([string]$Name) {
+  switch ($Name) {
+{{INIT_SPEC_CASES}}
+    default { throw ("PROJECT_INIT_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+$selected = @(Select-ProjectTargets $Project "Init-Project")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_INIT begin project=" + $p)
+  try {
+    $spec = Get-InitSpec $p
+    if ($spec.Body) {
+      Push-Location $spec.Dir
+      try { & $spec.Body } finally { Pop-Location }
+      Write-Host ("PROJECT_INIT_OK project=" + $p)
+    } else {
+      Write-Host ("PROJECT_INIT_SKIP project=" + $p + " reason=nothing-to-do")
+    }
+  } catch {
+    Write-Host ("PROJECT_INIT_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_INIT_ALL_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"

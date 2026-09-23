@@ -1,0 +1,34 @@
+# Local publish, per project. Preview the environment and commands with the user first;
+# -Confirm only guards against running it by accident.
+param(
+  [switch]$Confirm,
+  [string]$Project = "all",
+  [string]$RepoRoot = ""
+)
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "common.ps1")
+if (-not $Confirm) { throw "PROJECT_PUBLISH_FAIL: need -Confirm after user approved preview" }
+if (-not $RepoRoot) { $RepoRoot = Resolve-ProjectRepoRoot }
+
+function Invoke-PublishLocal([string]$Name, [bool]$Explicit) {
+  switch ($Name) {
+{{PUBLISH_LOCAL_CASES}}
+    default { throw ("PROJECT_PUBLISH_FAIL: unknown project '" + $Name + "'") }
+  }
+}
+
+$selected = @(Select-ProjectTargets $Project "Publish-Local")
+$explicit = -not ([string]::IsNullOrWhiteSpace($Project) -or $Project -eq "all")
+$failed = @()
+foreach ($p in $selected) {
+  Write-Host ("PROJECT_PUBLISH_LOCAL begin project=" + $p)
+  try {
+    Invoke-PublishLocal $p $explicit | Out-Null
+    Write-Host ("PROJECT_PUBLISH_LOCAL_OK project=" + $p)
+  } catch {
+    Write-Host ("PROJECT_PUBLISH_LOCAL_FAIL project=" + $p + " : " + $_.Exception.Message)
+    $failed += $p
+  }
+}
+if ($failed.Count -gt 0) { throw ("PROJECT_PUBLISH_ALL_FAIL: " + ($failed -join ",")) }
+Write-Host "PROJECT_DEV_OK"
