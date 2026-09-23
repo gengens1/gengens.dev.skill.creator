@@ -18,7 +18,7 @@
 
 ```mermaid
 flowchart TB
-  Skill["`{name}-dev`<br/>`.agents/skills/`"]
+  Skill["name-dev<br/>.agents/skills/"]
 
   subgraph Always["始终生成"]
     direction TB
@@ -38,7 +38,7 @@ flowchart TB
     Pub["发布<br/>Local / Online / Env"]
   end
 
-  subgraph Runtime["运行时 · 勿提交密钥"]
+  subgraph Runtime["运行时 - 勿提交密钥"]
     direction LR
     Pids[".runtime/pids.json"]
     Logs[".runtime/logs/"]
@@ -120,10 +120,10 @@ private_docs/
 
 ```mermaid
 flowchart LR
-  A[Announce] --> B[读 defaults + checklist]
+  A[Announce] --> B[读 defaults 与 checklist]
   B --> C[访谈收集 answers]
-  C --> D[预览含「无」项]
-  D --> E{用户确认?}
+  C --> D[预览含无项]
+  D --> E{用户确认}
   E -->|否| C
   E -->|是| F[临时 answers.json]
   F --> G[scaffold-project-skill.ps1]
