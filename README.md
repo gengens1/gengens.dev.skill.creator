@@ -197,6 +197,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $CreatorRoot "scr
 
 ## 相关文档
 
+- [LICENSE](LICENSE) — MIT
 - [SKILL.md](SKILL.md) — 代理工作流与成功判据
 - [references/interview-checklist.md](references/interview-checklist.md) — 访谈清单
 - [references/defaults.md](references/defaults.md) — 默认约定
